@@ -1,6 +1,6 @@
 This is a merge of the nice work for gr-osmocom blocks from :
 - Alex Csete OZ9AEC @csete  - for plutosdr  - https://github.com/csete
-- Lukas Tesle PU2NVX @lukasteske - for Spyserver client - https://github.com/racerxdl
+- Lukas Teske PU2NVX @lukasteske - for Spyserver client - https://github.com/racerxdl
 
 Tested with GNUradio, GQRX and more.
 
