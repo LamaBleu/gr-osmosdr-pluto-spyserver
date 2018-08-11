@@ -1,0 +1,551 @@
+FIRST READ CAREFULLY :
+
+- Use at your own risk. Make backups first. Not for beginners.
+- You don't need to update your actual gr-osmosdr if you don't own an ADALM-PLUTO !
+- If you don't own a Pluto but want to use a SpyserverClient on GNURadio/GQRX then use this repository : 
+https://github.com/racerxdl/gr-osmosdr
+or download this GQRX AppImage from Alex repository :
+https://github.com/csete/gqrx/releases/download/v2.11.5/Gqrx-2.11.5-x86_64.AppImage
+
+
+
+
+
+- Prepare :
+
+Assuming gr-osmosdr and GQRX are yet installed and tested.
+First update your ppa following instructions here : http://gqrx.dk/download/install-ubuntu
+
+
+
+*** 'SpyserverClient' support requirements
+==========================================
+
+- SpyserverClient module needs also Airpsy support to run:
+
+--> sudo apt-get install libairspyhf0 libairspy0 libairspy-dev airspy
+
+
+
+Must-read before trying to connect : https://skywavelinux.com/gqrx-spyserver-client.html
+Take care to sample-rate. Low sample-rate, packet loss may hang GQRX.
+ 
+
+*** ADALM-PlutoSDR requirements
+==============================
+
+1. needs IIO/ad93xx support :
+--> sudo apt-get libiio0 libiio-utils libiio-dev libgnuradio-iio libad9361-0 gr-iio
+
+2. Extending pluto freq range, ssh to pluto then perform following commands :
+
+# fw_setenv attr_name compatible
+# fw_setenv attr_val “ad9364”
+# pluto_reboot reset
+
+OR
+
+Flashing to PlutoWeb firmware will help a lot giving access to : Soapy suite support, OpenwebRX, leandvb, dum1090, and providing lot of nice features including permanent extended freq range.
+Link : http://www.rfoverride.com/plutoweb/ (authors unixpunk/imdroided)
+Another link : https://www.ab9il.net/software-defined-radio/plutosdr.html
+
+
+
+Compilation :
+=============
+
+
+- Apply usual gr-osmosdr instructions.
+
+mkdir build
+cd build
+cmake ../
+make
+sudo make install
+sudo ldconfig
+
+
+CMAKE (note on cmake ../ command):
+Don't try to go further if you don't see (at least) following ENABLED components :
+
+-- ######################################################
+-- # Gnuradio enabled components                         
+-- ######################################################
+--   * Python support
+--   * IIO Devices
+--   * AIRSPY Receiver
+--   * SpyServer Receiver
+
+You can disable some modules if unused or giving errors, example :
+cmake ../ -DENABLE_FCD=ON/OFF  (for FCD)
+
+Once compilation is done, I had to replace old copies of libgnuradio-osmosdr.so.0.1.5git to avoid conflicts.
+You have to check and adapt !
+
+sudo cp /usr/local/lib/libgnuradio-osmosdr.so.0.1.5git /usr/lib/x86_64-linux-gnu/libgnuradio-osmosdr.so.0.1.5git
+sudo cp /usr/local/lib/libgnuradio-osmosdr.so.0.1.5git /usr/lib/libgnuradio-osmosdr.so.0.1.5git
+
+
+Check installation success and try:
+- using basic osmocom_ftt utility is enough to check if install is OK, should display the RF spectrum around 466.155 MHz. :
+  
+
+--> tip : check 'built-in source types:' line: must contain 'plutosdr airspy spyserver'
+
+- PLUTO test:
+
+
+Ethernet:
+---------
+run : osmocom_fft -a plutosdr,uri=ip:192.168.2.1 -f 466.155M
+
+
+gr-osmosdr v0.1.x-xxx-xunknown (0.1.5git) gnuradio 3.7.10
+built-in source types: file osmosdr fcd rtl rtl_tcp plutosdr rfspace airspy soapy redpitaya spyserver 
+Using PlutoSDR URI = ip:192.168.2.1
+
+USB:
+----
+
+run: osmocom_fft -a plutosdr,uri=usb:1.6.5 -f 466.155M
+
+
+gr-osmosdr v0.1.x-xxx-xunknown (0.1.5git) gnuradio 3.7.10
+built-in source types: file osmosdr fcd rtl rtl_tcp plutosdr rfspace airspy soapy redpitaya spyserver 
+Using PlutoSDR URI = usb:1.6.5
+
+
+USB tip --> find actual uri : run 'iio -s' or 'SoapySDR --find' (if installed).
+
+ iio_info -s
+Library version: 0.15 (git tag: 2a76c2e)
+Compiled with backends: local xml ip usb
+Available contexts:
+	0: 0456:b673 (Analog Devices Inc. PlutoSDR (ADALM-PLUTO)), serial=104400xxxxxx00151500080041efxxxxxx [usb:1.6.5]
+
+
+SoapySDR : 
+osmocom_fft -a soapy=0,driver=plutosdr,uri=ip:192.168.2.1 -f 466.155M
+osmocom_fft -a soapy=0,driver=plutosdr,uri=usb:1.6.5 -f 466175000
+
+
+Spyserver client test: 
+
+GQRX (using bad or too high sample rate to remote server may hang GQRX) :
+
+tested OK : select 'Spyserverclient' in GQRX devices list...
+parameters : host=ik0mmi.ddns.net,port=5555,spyserver=0
+
+
+osmocom_fft :
+
+osmocom_fft -a host=pjm.uhf-satcom.com,port=55555,spyserver=0 --samp-rate=46875
+
+gr-osmosdr v0.1.x-xxx-xunknown (0.1.5git) gnuradio 3.7.10
+built-in source types: file osmosdr fcd rtl rtl_tcp plutosdr rfspace airspy soapy redpitaya spyserver 
+SpyServer(pjm.uhf-satcom.com, 55555)
+SpyServer: Trying to connect
+SpyServer: Connected
+SpyServer: Got sync Info
+SpyServer: Ready
+SpyServer: Setting sample rate to 46875
+SpyServer: Starting Streaming
+
+**************************
+
+If installation goes well you don't need to reinstall GQRX. Maybe !
+(mine was installed from PPA, not from ubuntu APT repository)
+
+**************************
+
+GQRX/Pluto driver note : 
+
+Noticed strange behaviour regarding Harware AGC and RF gain control.
+Because of sudden noise floor level drops making use unstable, I modified one line of original code from Alex, line 261 of plutosdr_source_c.cc forcing gain mode to 'manual' :
+
+ _src->set_params( freq, samplerate, bandwidth, quadrature, rfdc, bbdc,
+                    "manual", gain_value,
+                    filter.c_str(), filter_auto );
+
+Feel free to modify or adapt, but I'm happy with that.
+You can replace 'manual' by 'slow_attack' 'fast_attack' or 'hybrid' (before compiling).
+
+
+However GQRX is sometimes reporting this error :
+Unable to write attribute in_voltage0_hardwaregain: -22
+
+**************************
+
+Install log :
+
+user@COMPUTER:~/gr-osmosdr/build$ cmake ../
+-- The CXX compiler identification is GNU 5.4.0
+-- The C compiler identification is GNU 5.4.0
+-- Check for working CXX compiler: /usr/bin/c++
+-- Check for working CXX compiler: /usr/bin/c++ -- works
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- Check for working C compiler: /usr/bin/cc
+-- Check for working C compiler: /usr/bin/cc -- works
+-- Detecting C compiler ABI info
+-- Detecting C compiler ABI info - done
+-- Detecting C compile features
+-- Detecting C compile features - done
+-- Build type not specified: defaulting to release.
+-- Found Git: /usr/bin/git (found version "2.7.4") 
+-- Configuring Boost C++ Libraries...
+-- Looking for pthread.h
+-- Looking for pthread.h - found
+-- Looking for pthread_create
+-- Looking for pthread_create - not found
+-- Looking for pthread_create in pthreads
+-- Looking for pthread_create in pthreads - not found
+-- Looking for pthread_create in pthread
+-- Looking for pthread_create in pthread - found
+-- Found Threads: TRUE  
+-- Boost version: 1.58.0
+-- Found the following Boost libraries:
+--   thread
+--   system
+--   chrono
+--   date_time
+--   atomic
+-- Found PkgConfig: /usr/bin/pkg-config (found version "0.29.1") 
+Checking for GNU Radio Module: RUNTIME
+-- Checking for module 'gnuradio-runtime'
+--   Found gnuradio-runtime, version 3.7.10
+ * INCLUDES=/usr/include
+ * LIBS=/usr/lib/x86_64-linux-gnu/libgnuradio-runtime.so;/usr/lib/x86_64-linux-gnu/libgnuradio-pmt.so
+-- Found GNURADIO_RUNTIME: /usr/lib/x86_64-linux-gnu/libgnuradio-runtime.so;/usr/lib/x86_64-linux-gnu/libgnuradio-pmt.so  
+GNURADIO_RUNTIME_FOUND = TRUE
+Checking for GNU Radio Module: BLOCKS
+-- Checking for module 'gnuradio-blocks'
+--   Found gnuradio-blocks, version 3.7.10
+ * INCLUDES=/usr/include
+ * LIBS=/usr/lib/x86_64-linux-gnu/libgnuradio-blocks.so;/usr/lib/x86_64-linux-gnu/libgnuradio-runtime.so;/usr/lib/x86_64-linux-gnu/libgnuradio-pmt.so
+-- Found GNURADIO_BLOCKS: /usr/lib/x86_64-linux-gnu/libgnuradio-blocks.so;/usr/lib/x86_64-linux-gnu/libgnuradio-runtime.so;/usr/lib/x86_64-linux-gnu/libgnuradio-pmt.so  
+GNURADIO_BLOCKS_FOUND = TRUE
+Checking for GNU Radio Module: PMT
+-- Checking for module 'gnuradio-runtime'
+--   Found gnuradio-runtime, version 3.7.10
+ * INCLUDES=/usr/include
+ * LIBS=/usr/lib/x86_64-linux-gnu/libgnuradio-runtime.so;/usr/lib/x86_64-linux-gnu/libgnuradio-pmt.so
+-- Found GNURADIO_PMT: /usr/lib/x86_64-linux-gnu/libgnuradio-runtime.so;/usr/lib/x86_64-linux-gnu/libgnuradio-pmt.so  
+GNURADIO_PMT_FOUND = TRUE
+-- Checking for module 'gnuradio-iqbalance'
+--   No package 'gnuradio-iqbalance' found
+-- Could NOT find GNURADIO_IQBALANCE (missing:  GNURADIO_IQBALANCE_INCLUDE_DIRS) 
+-- Checking for module 'uhd'
+--   No package 'uhd' found
+-- Checking for module 'gnuradio-uhd'
+--   Found gnuradio-uhd, version 3.7.10
+-- Found gnuradio-uhd: /usr/include, /usr/lib/x86_64-linux-gnu/libgnuradio-uhd.so
+-- Found GNURADIO_UHD: /usr/lib/x86_64-linux-gnu/libgnuradio-uhd.so  
+-- Checking for module 'gnuradio-iio'
+--   Found gnuradio-iio, version 0.3
+-- Found gnuradio-iio: /usr/local/include, /usr/local/lib/libgnuradio-iio.so
+-- Found GNURADIO_IIO: /usr/local/lib/libgnuradio-iio.so  
+-- Checking for module 'gnuradio-fcd'
+--   Found gnuradio-fcd, version 3.7.10
+-- Found gnuradio-fcd: /usr/include, /usr/lib/x86_64-linux-gnu/libgnuradio-fcd.so
+-- Found GNURADIO_FCD: /usr/lib/x86_64-linux-gnu/libgnuradio-fcd.so  
+-- Checking for module 'gnuradio-fcdproplus'
+--   Package 'gnuradio-core', required by 'gnuradio-fcdproplus', not found
+-- Found gnuradio-fcdproplus: /usr/include, /usr/lib/x86_64-linux-gnu/libgnuradio-fcdproplus.so
+-- Found GNURADIO_FCDPP: /usr/lib/x86_64-linux-gnu/libgnuradio-fcdproplus.so  
+-- Checking for module 'libosmosdr'
+--   Found libosmosdr, version 
+-- Found libosmosdr: /usr/include, /usr/lib/x86_64-linux-gnu/libosmosdr.so
+-- Checking for module 'librtlsdr'
+--   Found librtlsdr, version 0.5.4-8-g8a26
+-- Found librtlsdr: /usr/local/include, /usr/local/lib/librtlsdr.so
+-- Checking for module 'libmirisdr'
+--   No package 'libmirisdr' found
+-- libmirisdr not found.
+-- Checking for module 'libhackrf'
+--   No package 'libhackrf' found
+-- Could NOT find LIBHACKRF (missing:  LIBHACKRF_LIBRARIES LIBHACKRF_INCLUDE_DIRS) 
+-- Checking for module 'libairspy'
+--   Found libairspy, version 1.0
+-- Found LIBAIRSPY: /usr/lib/x86_64-linux-gnu/libairspy.so  
+-- Checking for module 'volk'
+--   Found volk, version 1.3
+-- Found VOLK: /usr/lib/x86_64-linux-gnu/libvolk.so  
+-- Checking for module 'libbladeRF'
+--   No package 'libbladeRF' found
+-- libbladeRF not found.
+-- Checking for module 'libfreesrp'
+--   No package 'libfreesrp' found
+-- libfreesrp not found.
+-- Found Doxygen: /usr/bin/doxygen (found version "1.8.11") 
+-- Found PythonLibs: /usr/lib/x86_64-linux-gnu/libpython2.7.so (found suitable version "2.7.12", minimum required is "2") 
+-- 
+-- Checking for module SWIG
+-- Found SWIG version 3.0.8.
+-- Found SWIG: /usr/bin/swig3.0  
+-- Minimum SWIG version required is 1.3.31
+-- 
+-- The build system will automatically enable all components.
+-- Use -DENABLE_DEFAULT=OFF to disable components by default.
+-- 
+-- Configuring Python support support...
+--   Dependency PYTHONLIBS_FOUND = TRUE
+--   Dependency SWIG_FOUND = TRUE
+--   Dependency SWIG_VERSION_CHECK = TRUE
+--   Enabling Python support support.
+--   Override with -DENABLE_PYTHON=ON/OFF
+-- 
+-- Configuring high resolution timing...
+-- Performing Test HAVE_CLOCK_GETTIME
+-- Performing Test HAVE_CLOCK_GETTIME - Success
+-- Performing Test HAVE_MACH_ABSOLUTE_TIME
+-- Performing Test HAVE_MACH_ABSOLUTE_TIME - Failed
+-- Performing Test HAVE_QUERY_PERFORMANCE_COUNTER
+-- Performing Test HAVE_QUERY_PERFORMANCE_COUNTER - Failed
+--   High resolution timing supported through clock_gettime.
+-- 
+-- Configuring Osmocom IQ Imbalance Correction support...
+--   Dependency GNURADIO_IQBALANCE_FOUND = FALSE
+--   Disabling Osmocom IQ Imbalance Correction support.
+--   Override with -DENABLE_IQBALANCE=ON/OFF
+-- 
+-- Configuring sysmocom OsmoSDR support...
+--   Dependency LIBOSMOSDR_FOUND = TRUE
+--   Enabling sysmocom OsmoSDR support.
+--   Override with -DENABLE_OSMOSDR=ON/OFF
+-- 
+-- Configuring FUNcube Dongle support...
+--   Dependency GNURADIO_FCD_FOUND = TRUE
+--   Enabling FUNcube Dongle support.
+--   Override with -DENABLE_FCD=ON/OFF
+-- 
+-- Configuring FUNcube Dongle Pro+ support...
+--   Dependency GNURADIO_FCDPP_FOUND = TRUE
+--   Enabling FUNcube Dongle Pro+ support.
+--   Override with -DENABLE_FCDPP=ON/OFF
+-- 
+-- Configuring IQ File Source & Sink support...
+--   Dependency GNURADIO_BLOCKS_FOUND = TRUE
+--   Enabling IQ File Source & Sink support.
+--   Override with -DENABLE_FILE=ON/OFF
+-- 
+-- Configuring Osmocom RTLSDR support...
+--   Dependency LIBRTLSDR_FOUND = TRUE
+--   Enabling Osmocom RTLSDR support.
+--   Override with -DENABLE_RTL=ON/OFF
+-- 
+-- Configuring RTLSDR TCP Client support...
+--   Dependency GNURADIO_BLOCKS_FOUND = TRUE
+--   Enabling RTLSDR TCP Client support.
+--   Override with -DENABLE_RTL_TCP=ON/OFF
+-- 
+-- Configuring Ettus USRP Devices support...
+--   Dependency UHD_FOUND = 0
+--   Dependency GNURADIO_UHD_FOUND = TRUE
+--   Disabling Ettus USRP Devices support.
+--   Override with -DENABLE_UHD=ON/OFF
+-- 
+-- Configuring IIO Devices support...
+--   Dependency GNURADIO_IIO_FOUND = TRUE
+--   Enabling IIO Devices support.
+--   Override with -DENABLE_IIO=ON/OFF
+-- 
+-- Configuring Osmocom MiriSDR support...
+--   Dependency LIBMIRISDR_FOUND = FALSE
+--   Disabling Osmocom MiriSDR support.
+--   Override with -DENABLE_MIRI=ON/OFF
+-- 
+-- Configuring HackRF & rad1o Badge support...
+--   Dependency LIBHACKRF_FOUND = FALSE
+--   Disabling HackRF & rad1o Badge support.
+--   Override with -DENABLE_HACKRF=ON/OFF
+-- 
+-- Configuring nuand bladeRF support...
+--   Dependency LIBBLADERF_FOUND = FALSE
+--   Disabling nuand bladeRF support.
+--   Override with -DENABLE_BLADERF=ON/OFF
+-- 
+-- Configuring RFSPACE Receivers support...
+--   Enabling RFSPACE Receivers support.
+--   Override with -DENABLE_RFSPACE=ON/OFF
+-- 
+-- Configuring AIRSPY Receiver support...
+--   Dependency LIBAIRSPY_FOUND = TRUE
+--   Enabling AIRSPY Receiver support.
+--   Override with -DENABLE_AIRSPY=ON/OFF
+-- 
+-- Configuring SpyServer Receiver support...
+--   Enabling SpyServer Receiver support.
+--   Override with -DENABLE_SPYSERVER=ON/OFF
+-- 
+-- Configuring SoapySDR support support...
+--   Dependency SoapySDR_FOUND = 1
+--   Enabling SoapySDR support support.
+--   Override with -DENABLE_SOAPY=ON/OFF
+-- 
+-- Configuring Red Pitaya SDR support...
+--   Enabling Red Pitaya SDR support.
+--   Override with -DENABLE_REDPITAYA=ON/OFF
+-- 
+-- Configuring FreeSRP support support...
+--   Dependency LIBFREESRP_FOUND = FALSE
+--   Disabling FreeSRP support support.
+--   Override with -DENABLE_FREESRP=ON/OFF
+-- Found PythonInterp: /usr/bin/python2 (found suitable version "2.7.12", minimum required is "2") 
+-- Performing Test HAVE_WNO_UNUSED_BUT_SET_VARIABLE
+-- Performing Test HAVE_WNO_UNUSED_BUT_SET_VARIABLE - Success
+-- 
+-- ######################################################
+-- # Gnuradio enabled components                         
+-- ######################################################
+--   * Python support
+--   * sysmocom OsmoSDR
+--   * FUNcube Dongle
+--   * FUNcube Dongle Pro+
+--   * IQ File Source & Sink
+--   * Osmocom RTLSDR
+--   * RTLSDR TCP Client
+--   * IIO Devices
+--   * RFSPACE Receivers
+--   * AIRSPY Receiver
+--   * SpyServer Receiver
+--   * SoapySDR support
+--   * Red Pitaya SDR
+-- 
+-- ######################################################
+-- # Gnuradio disabled components                        
+-- ######################################################
+--   * Osmocom IQ Imbalance Correction
+--   * Ettus USRP Devices
+--   * Osmocom MiriSDR
+--   * HackRF & rad1o Badge
+--   * nuand bladeRF
+--   * FreeSRP support
+-- 
+-- Building for version: v0.1.x-xxx-xunknown / 0.1.5git
+-- Using install prefix: /usr/local
+-- Configuring done
+-- Generating done
+-- Build files have been written to: /home/user/gr-osmosdr/build
+user@COMPUTER:~/gr-osmosdr/build$ make
+Scanning dependencies of target gnuradio-osmosdr
+[  2%] Building CXX object lib/CMakeFiles/gnuradio-osmosdr.dir/source_impl.cc.o
+[  4%] Building CXX object lib/CMakeFiles/gnuradio-osmosdr.dir/sink_impl.cc.o
+[  6%] Building CXX object lib/CMakeFiles/gnuradio-osmosdr.dir/ranges.cc.o
+[  8%] Building CXX object lib/CMakeFiles/gnuradio-osmosdr.dir/device.cc.o
+[ 10%] Building CXX object lib/CMakeFiles/gnuradio-osmosdr.dir/time_spec.cc.o
+[ 13%] Building CXX object lib/CMakeFiles/gnuradio-osmosdr.dir/osmosdr/osmosdr_src_c.cc.o
+[ 15%] Building CXX object lib/CMakeFiles/gnuradio-osmosdr.dir/fcd/fcd_source_c.cc.o
+[ 17%] Building CXX object lib/CMakeFiles/gnuradio-osmosdr.dir/file/file_source_c.cc.o
+[ 19%] Building CXX object lib/CMakeFiles/gnuradio-osmosdr.dir/file/file_sink_c.cc.o
+[ 21%] Building CXX object lib/CMakeFiles/gnuradio-osmosdr.dir/rtl/rtl_source_c.cc.o
+[ 23%] Building CXX object lib/CMakeFiles/gnuradio-osmosdr.dir/rtl_tcp/rtl_tcp_source_c.cc.o
+[ 26%] Building CXX object lib/CMakeFiles/gnuradio-osmosdr.dir/plutosdr/plutosdr_source_c.cc.o
+[ 28%] Building CXX object lib/CMakeFiles/gnuradio-osmosdr.dir/rfspace/rfspace_source_c.cc.o
+[ 30%] Building CXX object lib/CMakeFiles/gnuradio-osmosdr.dir/airspy/airspy_source_c.cc.o
+[ 32%] Building CXX object lib/CMakeFiles/gnuradio-osmosdr.dir/spyserver/tcp_client.cc.o
+[ 34%] Building CXX object lib/CMakeFiles/gnuradio-osmosdr.dir/spyserver/spyserver_source_c.cc.o
+[ 36%] Building CXX object lib/CMakeFiles/gnuradio-osmosdr.dir/soapy/soapy_common.cc.o
+[ 39%] Building CXX object lib/CMakeFiles/gnuradio-osmosdr.dir/soapy/soapy_source_c.cc.o
+[ 41%] Building CXX object lib/CMakeFiles/gnuradio-osmosdr.dir/soapy/soapy_sink_c.cc.o
+[ 43%] Building CXX object lib/CMakeFiles/gnuradio-osmosdr.dir/redpitaya/redpitaya_source_c.cc.o
+[ 45%] Building CXX object lib/CMakeFiles/gnuradio-osmosdr.dir/redpitaya/redpitaya_sink_c.cc.o
+[ 47%] Building CXX object lib/CMakeFiles/gnuradio-osmosdr.dir/redpitaya/redpitaya_common.cc.o
+[ 50%] Linking CXX shared library libgnuradio-osmosdr.so
+[ 50%] Built target gnuradio-osmosdr
+Scanning dependencies of target osmosdr_swig_swig_doc
+[ 50%] Built target osmosdr_swig_swig_doc
+Scanning dependencies of target _osmosdr_swig_swig_tag
+[ 52%] Building CXX object swig/CMakeFiles/_osmosdr_swig_swig_tag.dir/_osmosdr_swig_swig_tag.cpp.o
+[ 54%] Linking CXX executable _osmosdr_swig_swig_tag
+[ 54%] Built target _osmosdr_swig_swig_tag
+[ 56%] Generating osmosdr_swig.tag
+Scanning dependencies of target osmosdr_swig_swig_2d0df
+[ 58%] Building CXX object swig/CMakeFiles/osmosdr_swig_swig_2d0df.dir/osmosdr_swig_swig_2d0df.cpp.o
+[ 60%] Linking CXX executable osmosdr_swig_swig_2d0df
+Swig source
+[ 60%] Built target osmosdr_swig_swig_2d0df
+Scanning dependencies of target _osmosdr_swig
+[ 63%] Building CXX object swig/CMakeFiles/_osmosdr_swig.dir/osmosdr_swigPYTHON_wrap.cxx.o
+[ 65%] Linking CXX shared module _osmosdr_swig.so
+[ 69%] Built target _osmosdr_swig
+Scanning dependencies of target pygen_swig_41201
+[ 71%] Generating osmosdr_swig.pyc
+[ 73%] Generating osmosdr_swig.pyo
+[ 76%] Built target pygen_swig_41201
+Scanning dependencies of target pygen_python_a4089
+[ 78%] Generating __init__.pyc
+[ 80%] Generating __init__.pyo
+[ 80%] Built target pygen_python_a4089
+Scanning dependencies of target osmosdr_grc_xml_blocks
+[ 82%] Generating rtlsdr_source.xml
+[ 84%] Generating osmosdr_source.xml
+[ 86%] Generating osmosdr_sink.xml
+[ 86%] Built target osmosdr_grc_xml_blocks
+Scanning dependencies of target pygen_apps_75b81
+[ 89%] Shebangin osmocom_fft
+[ 91%] Shebangin osmocom_siggen
+[ 93%] Shebangin osmocom_siggen_nogui
+[ 95%] Shebangin osmocom_spectrum_sense
+[ 95%] Built target pygen_apps_75b81
+Scanning dependencies of target pygen_apps_f843e
+[ 97%] Generating osmocom_siggen_base.pyc
+[100%] Generating osmocom_siggen_base.pyo
+[100%] Built target pygen_apps_f843e
+user@COMPUTER:~/gr-osmosdr/build$ sudo make install
+[sudo] Mot de passe de user : 
+[ 50%] Built target gnuradio-osmosdr
+[ 50%] Built target osmosdr_swig_swig_doc
+[ 54%] Built target _osmosdr_swig_swig_tag
+[ 60%] Built target osmosdr_swig_swig_2d0df
+[ 69%] Built target _osmosdr_swig
+[ 76%] Built target pygen_swig_41201
+[ 80%] Built target pygen_python_a4089
+[ 86%] Built target osmosdr_grc_xml_blocks
+[ 95%] Built target pygen_apps_75b81
+[100%] Built target pygen_apps_f843e
+Install the project...
+-- Install configuration: "Release"
+-- Installing: /usr/local/lib/pkgconfig/gnuradio-osmosdr.pc
+-- Up-to-date: /usr/local/include/osmosdr/api.h
+-- Up-to-date: /usr/local/include/osmosdr/pimpl.h
+-- Up-to-date: /usr/local/include/osmosdr/ranges.h
+-- Up-to-date: /usr/local/include/osmosdr/time_spec.h
+-- Up-to-date: /usr/local/include/osmosdr/device.h
+-- Up-to-date: /usr/local/include/osmosdr/source.h
+-- Up-to-date: /usr/local/include/osmosdr/sink.h
+-- Installing: /usr/local/lib/libgnuradio-osmosdr.so.0.1.5git
+-- Up-to-date: /usr/local/lib/libgnuradio-osmosdr.so
+-- Set runtime path of "/usr/local/lib/libgnuradio-osmosdr.so.0.1.5git" to ""
+-- Installing: /usr/local/lib/python2.7/dist-packages/osmosdr/_osmosdr_swig.so
+-- Set runtime path of "/usr/local/lib/python2.7/dist-packages/osmosdr/_osmosdr_swig.so" to ""
+-- Installing: /usr/local/lib/python2.7/dist-packages/osmosdr/osmosdr_swig.py
+-- Installing: /usr/local/lib/python2.7/dist-packages/osmosdr/osmosdr_swig.pyc
+-- Installing: /usr/local/lib/python2.7/dist-packages/osmosdr/osmosdr_swig.pyo
+-- Up-to-date: /usr/local/include/osmosdr/swig/osmosdr_swig.i
+-- Installing: /usr/local/include/osmosdr/swig/osmosdr_swig_doc.i
+-- Up-to-date: /usr/local/lib/python2.7/dist-packages/osmosdr/__init__.py
+-- Installing: /usr/local/lib/python2.7/dist-packages/osmosdr/__init__.pyc
+-- Installing: /usr/local/lib/python2.7/dist-packages/osmosdr/__init__.pyo
+-- Installing: /usr/local/share/gnuradio/grc/blocks/rtlsdr_source.xml
+-- Installing: /usr/local/share/gnuradio/grc/blocks/osmosdr_source.xml
+-- Installing: /usr/local/share/gnuradio/grc/blocks/osmosdr_sink.xml
+-- Up-to-date: /usr/local/lib/python2.7/dist-packages/osmosdr/osmocom_siggen_base.py
+-- Installing: /usr/local/lib/python2.7/dist-packages/osmosdr/osmocom_siggen_base.pyc
+-- Installing: /usr/local/lib/python2.7/dist-packages/osmosdr/osmocom_siggen_base.pyo
+-- Installing: /usr/local/bin/osmocom_fft
+-- Installing: /usr/local/bin/osmocom_siggen
+-- Installing: /usr/local/bin/osmocom_siggen_nogui
+-- Installing: /usr/local/bin/osmocom_spectrum_sense
+
+
+Then just in case, replacing all existing version of libgnuradio-osmosdr.so.0.1.5git
+
+user@COMPUTER:~/gr-osmosdr/build$ sudo cp /usr/local/lib/libgnuradio-osmosdr.so.0.1.5git /usr/lib/x86_64-linux-gnu/libgnuradio-osmosdr.so.0.1.5git
+user@COMPUTER:~/gr-osmosdr/build$  sudo cp /usr/local/lib/libgnuradio-osmosdr.so.0.1.5git /usr/lib/libgnuradio-osmosdr.so.0.1.5git
+user@COMPUTER:~/gr-osmosdr/build$ sudo ldconfig
+
+Enjoy !
+LamaBleu - August 2018
