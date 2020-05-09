@@ -35,7 +35,7 @@ Take care to sample-rate. Low sample-rate, packet loss may hang GQRX.
 ==============================
 
 1. needs IIO/ad93xx support :
---> sudo apt-get libiio0 libiio-utils libiio-dev libgnuradio-iio libad9361-0 gr-iio
+--> sudo apt-get install libiio0 libiio-utils libiio-dev libgnuradio-iio libad9361-0 gr-iio
 
 2. Extending pluto freq range, ssh to pluto then perform following commands :
 
