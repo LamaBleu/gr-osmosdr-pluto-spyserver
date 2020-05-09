@@ -5,7 +5,7 @@ This is a merge of the nice work for gr-osmocom blocks from :
 Tested with GNUradio, GQRX and more.
 
 See general osmosdr instructions below.
-Specific notes regarding spyserver client and pluto modules : have a look to notes_spyserver-pluto.txt file
+**Specific notes regarding spyserver client and pluto modules : have a look to [notes_spyserver-pluto.txt](./notes_spyserver-pluto.txt) file**
 
 Note : This gr-osmosdr-pluto-spyserver github directory is not linked to http://git.osmocom.org/gr-osmosdr 
 and will be obviously soon out-dated.
