@@ -8,6 +8,9 @@ See general osmosdr instructions below.
 
 Specific notes regarding spyserver client and pluto modules : have a look to notes_spyserver-pluto.txt file
 
+Have also a look to this update for GNURadio 3.8, fork provided by DK2RO, thanks : 
+https://github.com/dk2ro/gr-osmosdr-pluto-spyserver
+
 Note : This gr-osmosdr-pluto-spyserver github directory is not linked to http://git.osmocom.org/gr-osmosdr 
 and will be obviously soon out-dated.
 
